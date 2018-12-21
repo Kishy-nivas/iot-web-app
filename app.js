@@ -7,12 +7,23 @@ var http = require('http').Server(app);  // bind the app with http server
 var io = require('socket.io')(http);   // bind the http with socket 
 var mongoose = require('mongoose');    // mongoDb client 
 var cors = require('cors'); 
+const morgan = require('morgan');
+app.use(morgan('dev'));
+
+
+// import routes 
+const ProductRoutes = require('./routes/product'); 
+const orderRoutes = require('./routes/order'); 
+
+
 app.use(cors()); // cross-site origin 
 app.use(express.json()); //  parse-request body
 app.use(express.urlencoded({ extended: false }));
 
 var dbUrl = "mongodb://127.0.0.1:27017/library-app";
 
+app.use('/products', ProductRoutes); 
+app.use('/orders',orderRoutes); 
 
 mongoose.connect(dbUrl,{useNewUrlParser : true},(err)=>{
     if(!err) console.log("connection successful");
@@ -30,7 +41,7 @@ app.get('/app', (req,res)=> {
 });
 
 app.get('/index',(req,res) => {
-    res.sendFile(path.join(__dirname + '/index.html' ));        // send the index file 
+    res.sendFile(path.join(__dirname + '/views/index.html' ));        // send the index file 
 
 
     console.log("Hello Index page"); 
@@ -60,8 +71,24 @@ app.post('/messages', (req, res) => {
         sendStatus(500);
     io.emit('message', message);
       res.sendStatus(200);
-    })
-  })
+    }); 
+  }); 
+
+
+  app.use((req,res,next) => {
+      const error = new Error("Not found"); 
+      error.status(404); 
+      next(error); 
+  }); 
+
+  app.use((error,req,res,next) => {
+      res.status(error.status || 500); 
+      res.json({
+          error:{
+              message: error.message 
+          }
+      }); 
+  }); 
  
 
   http.listen(PORT,()=>{
